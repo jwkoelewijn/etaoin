@@ -140,25 +140,38 @@
     nil resp
     (:value resp)))
 
-(defn create-session
+(defmulti create-session
   "Initiates a new session for a driver. Opens a browser window as a
   side-effect. All the further requests are made within specific
   session. Some drivers may work with only one active session. Returns
   a long string identifier."
+  dispatch-driver)
+
+(defmethod create-session :default
   [driver & [capabilities]]
   (with-resp driver
-    :post
-    [:session]
-    {:desiredCapabilities (or capabilities {})}
-    result
-    (:sessionId result)))
+             :post
+             [:session]
+             {:desiredCapabilities (or capabilities {})}
+             result
+             (:sessionId result)))
+
+(defmethod create-session :firefox
+  [driver & [capabilities]]
+  (with-resp driver
+             :post
+             [:session]
+             {:desiredCapabilities (or capabilities {})}
+             result
+             (get-in result [:value :sessionId])))
 
 (defn delete-session [driver]
   "Deletes a session. Closes a browser window."
-  (with-resp driver
-    :delete
-    [:session (:session @driver)]
-    nil _))
+  (if-not (nil? (:session @driver))
+    (with-resp driver
+      :delete
+      [:session (:session @driver)]
+      nil _)))
 
 ;;
 ;; actice element
@@ -269,8 +282,7 @@
     [:session (:session @driver) :window :maximize]
     nil _))
 
-(defmethods maximize
-  [:chrome :headless :safari]
+(defmethods maximize [:chrome :safari :headless]
   [driver]
   (let [h (get-window-handle driver)]
     (with-resp driver :post
@@ -710,10 +722,20 @@
     [:session (:session @driver) :element el :click]
     nil _))
 
-(defn click
+(declare wait)
+
+(defmulti click
   "Clicks on an element (a link, button, etc)."
+  dispatch-driver)
+
+(defmethod click :default
   [driver q]
   (click-el driver (query driver q)))
+
+(defmethod click :safari
+  [driver q]
+  (click-el driver (query driver q))
+  (wait driver 0.1))
 
 (defmulti double-click-el dispatch-driver)
 
@@ -1828,12 +1850,25 @@
   [driver text & more]
   (apply fill-active* driver text more))
 
-(defn fill-el
-  "Fills an element with text by its identifier."
-  [driver el text & more]
-  (with-resp driver :post
-    [:session (:session @driver) :element el :value]
-    {:value (apply make-input* text more)} _))
+(defmulti fill-el dispatch-driver)
+
+(defmethod fill-el :default
+  [driver el text]
+  (let [keys (if (char? text)
+               (str text)
+               text)]
+    (with-resp driver :post
+      [:session (:session @driver) :element el :value]
+      {:value (vec keys)} _)))
+
+(defmethod fill-el :firefox
+  [driver el text]
+  (let [keys (if (char? text)
+               (str text)
+               text)]
+    (with-resp driver :post
+               [:session (:session @driver) :element el :value]
+               {:text keys} _)))
 
 (defn fill
   "Fills an element found with a query with a given text.
@@ -2016,8 +2051,28 @@
                         (conj params "html"))]
     (log/debugf "Writing screenshot: %s" path-img)
     (log/debugf "Writing HTML source: %s" path-src)
+    (clojure.java.io/make-parents path-img)
     (screenshot driver path-img)
     (spit path-src (get-source driver))))
+
+(def current-driver-map (atom nil))
+(def original-reporter (atom nil))
+
+(defmulti reporter :type)
+
+(defn- handle-problem [report-map]
+  (let [{:keys [driver opts]} @current-driver-map]
+    (postmortem-handler driver opts))
+  (@original-reporter report-map))
+
+(defmethod reporter :default [report-map]
+  (@original-reporter report-map))
+
+(defmethod reporter :error [report-map]
+  (handle-problem report-map))
+
+(defmethod reporter :fail [report-map]
+  (handle-problem report-map))
 
 (defmacro with-postmortem
   "Wraps the body with postmortem handler. If any error occurs,
@@ -2043,11 +2098,15 @@
   filenames unique. Default is \"yyyy-MM-dd-hh-mm-ss\". See Oracle
   Java `SimpleDateFormat` class manual for more patterns."
   [driver opt & body]
-  `(try
-     ~@body
-     (catch Exception e#
-       (postmortem-handler ~driver ~opt)
-       (throw e#))))
+  `(do
+     (reset! original-reporter clojure.test/report)
+     (reset! current-driver-map {:driver ~driver :opts ~opt})
+     (binding [clojure.test/report reporter]
+       (try
+         ~@body
+         (finally (do
+                    (reset! current-driver-map nil)
+                    (reset! original-reporter nil)))))))
 
 ;;
 ;; driver management

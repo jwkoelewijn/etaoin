@@ -1,8 +1,12 @@
-(defproject etaoin "0.1.8-SNAPSHOT"
+(defproject com.nedap.staffing-solutions/etaoin "0.1.8-SNAPSHOT"
   :description "Pure Clojure Webdriver protocol implementation."
   :url "https://github.com/igrishaev/etaoin"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
+
+  :repositories {"snapshots" {:url "https://nedap.jfrog.io/nedap/staffing-solutions/"
+                              :username :env/artifactory_user
+                              :password :env/artifactory_pass}}
 
   :profiles {:dev {:plugins [[autodoc/lein-autodoc "1.1.1"]]
                    :dependencies [[org.clojure/clojure "1.8.0"]
