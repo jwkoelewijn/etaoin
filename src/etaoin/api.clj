@@ -269,7 +269,7 @@
     [:session (:session @driver) :window :maximize]
     nil _))
 
-(defmethods maximize [:chrome :safari]
+(defmethods maximize [:chrome :safari :headless]
   [driver]
   (let [h (get-window-handle driver)]
     (with-resp driver :post
