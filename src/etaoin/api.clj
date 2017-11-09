@@ -146,11 +146,12 @@
 (defmethod create-session :firefox
   [driver & [capabilities]]
   (with-resp driver
-             :post
-             [:session]
-             {:desiredCapabilities (or capabilities {})}
-             result
-             (get-in result [:value :sessionId])))
+    :post
+    [:session]
+    {:desiredCapabilities (or capabilities {})}
+    result
+    (or (:sessionId result)             ;; default
+        (:sessionId (:value result))))) ;; firefox
 
 (defn delete-session [driver]
   "Deletes a session. Closes a browser window."
