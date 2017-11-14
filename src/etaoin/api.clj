@@ -259,7 +259,7 @@
 
 (defmulti maximize
   "Makes the browser window as wide as your screen allows."
-  {:arglists '([driver])}
+  {:arglists '([driver])} ;; todo it does't work
   dispatch-driver)
 
 (defmethod maximize :firefox
@@ -1527,7 +1527,8 @@
                 :interval interval
                 :times times
                 :predicate pred}))
-     (when-not (pred)
+     (when-not (with-http-error
+                 (pred))
        (wait interval)
        (recur pred (assoc
                     opt
