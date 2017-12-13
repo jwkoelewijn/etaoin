@@ -721,8 +721,7 @@
 
 (defmethod click :safari
   [driver q]
-  (click-el driver (query driver q))
-  (wait driver 0.1))
+  (click-el driver (query driver q)))
 
 (defmulti double-click-el dispatch-driver)
 
