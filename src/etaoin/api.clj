@@ -1505,7 +1505,7 @@
     resp
     (:value resp)))
 
-(defmethods displayed-el? [:safari :chrome]
+(defmethod displayed-el? :safari
   [driver el]
   (cond
     (= (get-element-css-el driver el :display)
