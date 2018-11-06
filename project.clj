@@ -1,4 +1,4 @@
-(defproject com.nedap.staffing-solutions/etaoin "0.2.3-SNAPSHOT"
+(defproject com.nedap.staffing-solutions/etaoin "0.2.3"
   :description "Pure Clojure Webdriver protocol implementation."
   :url "https://github.com/igrishaev/etaoin"
   :license {:name "Eclipse Public License"
